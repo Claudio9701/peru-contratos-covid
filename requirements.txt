@@ -1,0 +1,9 @@
+pandas
+geopandas
+dash
+dash-bootstrap-components
+dash-cytoscape
+dash-core-components
+dash-html-components
+plotly
+gunicorn

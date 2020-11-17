@@ -8,7 +8,10 @@ import dash_html_components as html
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 
-app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP])
+app = dash.Dash(__name__, external_stylesheets=[dbc.themes.BOOTSTRAP],
+                meta_tags=[{"name": "viewport", "content": "width=device-width"}])
+app.title = 'Peru Contratos COVID-19'
+server = app.server
 
 # Data preparation
 df = pd.read_csv('inputs/CONOSCE_CONTRATACIONDIRECTA.csv', nrows=25)
