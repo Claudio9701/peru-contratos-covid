@@ -94,8 +94,8 @@ navbar = dbc.NavbarSimple(
         dbc.DropdownMenu(
             children=[
                 dbc.DropdownMenuItem("Fuente de Datos", href="https://www.datosabiertos.gob.pe/dataset/contrataciones-ante-la-emergencia-sanitaria-por-la-existencia-del-coronavirus-organismo"),
-                dbc.DropdownMenuItem("Codigo Fuente", href="#"),
-                dbc.DropdownMenuItem("Autor", href="#"),
+                dbc.DropdownMenuItem("Codigo Fuente", href="https://github.com/Claudio9701/peru-contratos-covid"),
+                dbc.DropdownMenuItem("Autor", href="https://github.com/Claudio9701"),
             ],
             nav=True,
             in_navbar=True,
