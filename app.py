@@ -124,7 +124,7 @@ navbar = dbc.NavbarSimple(
     color="primary",
     dark=True,
     className='mb-3',
-    fluid=True
+    fluid=False
 )
 
 about = html.Div(
@@ -333,7 +333,7 @@ content = dbc.Container(
             ], body=True
         ), className='mb-3')], align="center"),
     ],
-    fluid=True,
+    fluid=False,
 )
 
 
