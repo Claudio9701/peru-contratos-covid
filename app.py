@@ -6,6 +6,7 @@ import dash_bootstrap_components as dbc
 import dash_cytoscape as cyto
 import dash_core_components as dcc
 import dash_html_components as html
+import dash_table
 from dash.dependencies import Input, Output, State
 import plotly.express as px
 
@@ -56,7 +57,7 @@ def create_cytoscape_elements(df):
     nodes = [{'data': data} for data in nodes_df.to_dict(orient='records')]
     # Edges
     edges = df.apply(
-        lambda x: {'data': {'source': x['RUC_ENTIDAD'], 'target': x['RUCPROVEEDOR'], 'edgeWidth': x['edgeWidth']}},
+        lambda x: {'data': {'source': x['RUC_ENTIDAD'], 'target': x['RUCPROVEEDOR'], 'edgeWidth': x['edgeWidth'], 'monto': x['MONTOADJUDICADOSOLES'], 'df_index':x.name}},
         axis=1
     ).values.tolist()
     # Cytoscope elements
@@ -69,22 +70,27 @@ stylesheet = [
     {
         'selector': 'edge',
         'style': {
-            'width': '3',
-            'line-color': '#000'
+            'width': 'data(edgeWidth)',
+            'line-color': '#000',
+            'curve-style': 'bezier'
         }
     },
     {
         'selector': '[type = "entidad"]',
         'style': {
             'background-color': '#dc3545',
-            'label': 'data(label)'
+            'label': 'data(label)',
+            'color': '#dc3545',
+            'font-size': '11'
         }
     },
     {
         'selector': '[type = "proveedor"]',
         'style': {
             'background-color': '#ffc107',
-            'label': 'data(label)'
+            'label': 'data(label)',
+            'color': '#ffc107',
+            'font-size': '11'
         }
     }
 ]
@@ -128,7 +134,7 @@ about = html.Div(
                 El presente dashboard contiene un breve análisis de
                 datos de contrataciones de emergencia del estado peruano
                 durante el tiempo de la pandemia del COVID-19. El objetivo de
-                este MVP motivar el uso de herramientas basadas en datos abiertos
+                este MVP es motivar el uso de herramientas basadas en datos abiertos
                 para transparentar procesos políticos, administrativos, entre otros.
             """,
             id="alert-fade",
@@ -141,7 +147,12 @@ about = html.Div(
 
 controls = dbc.Card(
     [
-        html.H5('Búsqueda Múltiple'),
+        html.H5(['Búsqueda Múltiple', dbc.Badge("?", id="tooltip-bm", color='light', className="ml-1")]),
+        dbc.Tooltip(
+            "Selecciona las opciones para "
+            "filtrar los contratos a analizar.",
+            target="tooltip-bm",
+        ),
         dbc.FormGroup(
             [
                 dbc.Label("Selecciona el Número de Contratos a visualizar"),
@@ -205,7 +216,12 @@ controls = dbc.Card(
             ]
         ),
         html.Hr(),
-        html.H5('Búsqueda Individual'),
+        html.H5(['Búsqueda Individual', dbc.Badge("?", id="tooltip-bi", color='light', className="ml-1")]),
+        dbc.Tooltip(
+            "Te permite buscar especificamente "
+            "a un proveedor o entidad del estado.",
+            target="tooltip-bi",
+        ),
         dbc.FormGroup(
             [
                 dcc.Dropdown(
@@ -224,8 +240,7 @@ content = dbc.Container(
     [
         dbc.Row([dbc.Col(html.Div(
             [
-                html.H4("Análisis de Contrataciones de Emergencia por COVID-19"),
-                dbc.Button("Información", id="alert-toggle-fade", color="secondary"),
+                html.H4(["Análisis de Contrataciones de Emergencia por COVID-19", dbc.Badge("?", id="alert-toggle-fade", color='light', className="ml-1")]),
             ]
         ), className="mb-3")], align="center"),
         dbc.Row([dbc.Col(about, className="mb-3")], align="center"),
@@ -237,13 +252,18 @@ content = dbc.Container(
                         dbc.Card(
                             dbc.CardBody(
                                 [
+                                    html.H5(["Contratos por Deparamentos", dbc.Badge("?", id="tooltip-mc", color='light', className="ml-1")]),
+                                    dbc.Tooltip(
+                                        "Este mapa de calor muestra el monto adjudicado "
+                                        "per cápita agregado por departamentos.",
+                                        target="tooltip-mc",
+                                    ),
                                     dcc.Loading(
                                         id="loading-map",
                                         type="default",
                                         children=html.Div(
                                             [
-                                                html.H5("Mapa de Provincias"),
-                                                dcc.Graph(id='departamento-map', figure=map_fig)
+                                                dcc.Graph(id='departamento-map', figure=map_fig, responsive=True)
                                             ],
                                         ),
                                     )
@@ -251,38 +271,75 @@ content = dbc.Container(
                             )
                         ),
                         dbc.Card(
-                            dbc.CardBody(
-                                [
-                                    dcc.Loading(
-                                        id="loading-graph",
-                                        type="default",
-                                        children=html.Div(
-                                            [
-                                                html.H5("Contratos entre Entidades y Proveedores"),
-                                                cyto.Cytoscape(
-                                                    id='cytoscape-graph',
-                                                    layout={'name': 'cose'},
-                                                    zoom=5,
-                                                    style={'width': '100%', 'height': '45vh'},
-                                                    responsive=True,
-                                                    stylesheet=stylesheet
-                                                ),
-                                                dbc.Button('Reset Graph', id='bt-reset', color="primary", className='mr-1', block=True),
-                                            ],
-                                        ),
-                                    )
-                                ]
-                            )
+                            [
+                                html.H5(["Ranking por Monto Adjudicado", dbc.Badge("?", id="tooltip-rc", color='light', className="ml-1")]),
+                                dbc.Tooltip(
+                                    "Este es un gráfico de barras que muestra "
+                                    "el monto adjudicado para las entidades o "
+                                    "proveedores seleccionados.",
+                                    target="tooltip-rc",
+                                ),
+                                dcc.Graph(id='bar-chart', responsive=True)
+                            ], body=True
                         ),
                     ]
                 ), className='mb-3'),
             ],
             align="center",
         ),
-        dbc.Row([dbc.Col(dbc.Card([dcc.Graph(id='bar-chart')], body=True), className='mb-3')], align="center"),
+        dbc.Row([dbc.Col(dbc.Card(
+            dbc.CardBody(
+                [
+                    html.H5(["Contratos entre Entidades y Proveedores", dbc.Badge("?", id="tooltip-cg", color='light', className="ml-1")]),
+                    dbc.Tooltip(
+                        "Aquí se presentan las entidades (rojo), proveedores "
+                        "(amarillo) y los contratos entre ellos (conexiones). "
+                        "El monto adjudicado determina el grosor de la conexión.",
+                        target="tooltip-cg",
+                    ),
+                    dcc.Loading(
+                        id="loading-graph",
+                        type="default",
+                        children=html.Div(
+                            [
+                                cyto.Cytoscape(
+                                    id='cytoscape-graph',
+                                    layout={'name': 'cose'},
+                                    zoom=5,
+                                    style={'width': '100%', 'height': '45vh'},
+                                    responsive=True,
+                                    stylesheet=stylesheet
+                                ),
+                            ],
+                        ),
+                    ),
+                    dcc.Markdown(id='cytoscape-mouseoverData-output'),
+                    dbc.Button('Reinicia el Grafo', id='bt-reset', color="primary", className='mr-1', block=True),
+                ]
+            )
+        ), className='mb-3')], align="center"),
+        dbc.Row([dbc.Col(dbc.Card(
+            [
+                html.H5(['Detalle del Contrato', dbc.Badge("?", color='light', id="tooltip-dc",className="ml-1")]),
+                dbc.Tooltip(
+                    "Selecciona una conexión del gráfico de "
+                    "Contratos entre Entidades y Proveedores para "
+                    "ver más detalle del contrato.",
+                    target="tooltip-dc",
+                ),
+                dash_table.DataTable(
+                    id='table',
+                )
+            ], body=True
+        ), className='mb-3')], align="center"),
     ],
     fluid=True,
 )
+
+
+
+
+
 
 app.layout = html.Div([navbar, content])
 
@@ -296,6 +353,36 @@ def toggle_alert(n, is_open):
         return not is_open
     return is_open
 
+@app.callback(Output('cytoscape-mouseoverData-output', 'children'),
+              [Input('cytoscape-graph', 'mouseoverNodeData'),
+               Input('cytoscape-graph', 'mouseoverEdgeData')])
+def displayTapNodeData(node_data, edge_data):
+    changed_id = [p['prop_id'] for p in dash.callback_context.triggered][0]
+    if 'mouseoverNodeData' in changed_id:
+        if node_data['type'] == 'proveedor':
+            filtered_df = df[df['RUCPROVEEDOR'] == int(node_data['id'])]
+            name = filtered_df['Proveedor_clean'].iloc[0]
+            return f"**Entidad:** {name}"
+        elif node_data['type'] == 'entidad':
+            filtered_df = df[df['RUC_ENTIDAD'] == int(node_data['id'])]
+            name = filtered_df['Entidad_clean'].iloc[0]
+            return f"**Proveedor:** {name}"
+    elif 'mouseoverEdgeData' in changed_id:
+        proveedor_df = df[df['RUCPROVEEDOR'] == int(edge_data['target'])]
+        proveedor_name = proveedor_df['Proveedor_clean'].iloc[0]
+
+        entidad_df = df[df['RUC_ENTIDAD'] == int(edge_data['source'])]
+        entidad_name = entidad_df['Entidad_clean'].iloc[0]
+
+        return f"""
+            **Entidad:** {entidad_name}
+
+            **Proveedor:** {proveedor_name}
+
+            **Monto Adjudicado:** s/{edge_data['monto']}
+        """
+
+
 @app.callback(Output('bar-chart', 'figure'),
               [Input('cytoscape-graph', 'tapNodeData')])
 def displayTapNodeData(data):
@@ -304,19 +391,48 @@ def displayTapNodeData(data):
         if data['type'] == 'entidad':
             filtered_df = df[df['RUC_ENTIDAD'] == int(data['id'])]
             name = filtered_df['Entidad_clean'].iloc[0]
-            fig = px.bar(filtered_df, x="RUCPROVEEDOR", y="MONTOADJUDICADOSOLES", title=f"Proovedores contratados por {name}, RUC: {data['id']}", labels=labels, hover_name="Proveedor_clean")
+            fig = px.bar(filtered_df, y="Proveedor_truncated", x="MONTOADJUDICADOSOLES", title=f"Proovedores contratados por {name}, RUC: {data['id']}", labels=labels, hover_name="Proveedor_clean", orientation='h')
         else:
             filtered_df = df[df['RUCPROVEEDOR'] == int(data['id'])]
             name = filtered_df['Proveedor_clean'].iloc[0]
-            fig = px.bar(filtered_df, x="RUC_ENTIDAD", y="MONTOADJUDICADOSOLES", title=f"Entidades que contraron a {name}, RUC: {data['id']}", labels=labels, hover_name="Entidad_clean")
-
+            fig = px.bar(filtered_df, y="Entidad_truncated", x="MONTOADJUDICADOSOLES", title=f"Entidades que contraron a {name}, RUC: {data['id']}", labels=labels, hover_name="Entidad_clean", orientation='h')
     else:
         top20 = df.sort_values('MONTOADJUDICADOSOLES').tail(20)
-        fig = px.bar(top20, x="RUCPROVEEDOR", y="MONTOADJUDICADOSOLES", title='Proovedores Contratados por Entidades del Estado (Top 20 por Monto Adjudicado)', labels=labels, hover_name="Proveedor_clean")
+        fig = px.bar(top20, y="Proveedor_truncated", x="MONTOADJUDICADOSOLES",
+                     labels=labels, hover_name="Proveedor_clean", orientation='h',
+                     title='Proovedores Contratados por Entidades del Estado (Top 20 por Monto Adjudicado)')
 
-    fig.update_layout(xaxis={'categoryorder':'total descending', 'title':{'text':''}, 'type':'category'}, barmode='stack')
+    fig.update_layout(
+        yaxis={'categoryorder':'total ascending', 'title':{'text':''}, 'type':'category'},
+        barmode='stack', margin={"r":0,"b":0}
+    )
 
     return fig
+
+@app.callback([Output('table', 'columns'),
+               Output('table', 'data')],
+              [Input('cytoscape-graph', 'tapEdgeData')],
+              [State('table', 'columns'),
+               State('table', 'data')])
+def displayTapEdgeData(edge_data, columns, data):
+    vars = [
+        # info entidad
+        "ENTIDAD_DEPARTAMENTO", 'TIPOENTIDADOEE', 'SECTOR', 'RUC_ENTIDAD', 'Entidad_clean',
+        # info proveedor
+        'RUBROS', 'TIPOPROVEEDOR', 'RUCPROVEEDOR', 'Proveedor_clean',
+        # info contrato
+        'FECHACONVOCATORIA', 'MONTOADJUDICADOSOLES', 'OBJETOCONTRACTUAL',
+        'DESCRIPCION_PROCESO', #'URL_idConvocatoria' (not working)
+    ]
+    if edge_data:
+        record = df.loc[edge_data['df_index'], vars]
+        # record['URL_idConvocatoria'] = URL_proceso + record['URL_idConvocatoria'].astype('str')
+        record = record.reset_index()
+        record.columns = ['Atributo', 'Valor']
+        columns = [{"name": i, "id": i} for i in record.columns]
+        data = record.to_dict('records')
+
+    return columns, data
 
 @app.callback([Output('cytoscape-graph', 'elements'),
                Output('dropdown-entidad', 'options'),
@@ -354,20 +470,27 @@ def filtrDataFrame(entidad, proveedor, rubros, search, sample_size, data, map_cl
 
     if data:
         if data['type'] == 'entidad':
-            filtered_df = filtered_df[filtered_df['RUC_ENTIDAD'] == int(data['id'])]
+            filtered_df = df[df['RUC_ENTIDAD'] == int(data['id'])]
         elif data['type'] == 'proveedor':
-            filtered_df = filtered_df[filtered_df['RUCPROVEEDOR'] == int(data['id'])]
+            filtered_df = df[df['RUCPROVEEDOR'] == int(data['id'])]
+
+        entidad_filter = filtered_df['TIPOENTIDADOEE'].isin(entidad)
+        proveedor_filter = filtered_df['TIPOPROVEEDOR'].isin(proveedor)
+        rubros_filter = filtered_df['RUBROS'].isin(rubros)
+
+        # Apply filters
+        filtered_df = filtered_df[entidad_filter & proveedor_filter & rubros_filter]
 
     if search:
         is_entity = df['RUC_ENTIDAD'] == search
         is_supplier = df['RUCPROVEEDOR'] == search
 
-        filtered_df = df[is_entity | is_supplier]
+        rubros_filter = filtered_df['RUBROS'].isin(rubros)
+
+        filtered_df = df[(is_entity | is_supplier) & rubros_filter]
 
     # Cytoscope elements
     new_elements = create_cytoscape_elements(filtered_df)
-
-    print(TIPO_ENTIDAD_OPTIONS)
 
     return new_elements, TIPO_ENTIDAD_OPTIONS, TIPO_PROVEEDOR_OPTIONS, RUBROS_OPTIONS
 
